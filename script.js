@@ -32,12 +32,6 @@ function getDaysInCurrentMonth() {
     return new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
 }
 
-// Get current day index where Saturday is correctly mapped (Mon=0, Tue=1, Wed=2, Thu=3, Fri=4, Sat=5, Sun=6)
-function getCurrentDayIndex() {
-    const jsDay = new Date().getDay(); // 0 is Sunday, 1 is Monday, ..., 6 is Saturday
-    return jsDay === 0 ? 6 : jsDay - 1;
-}
-
 function registerHero() {
     const name = heroNameInput.value.trim();
     if (!name) return;
@@ -48,10 +42,10 @@ function registerHero() {
         id: Date.now(),
         name: name,
         points: 0,
-        photo: null, 
+        photo: null, // Custom picture support
         chores: [],
-        days: [0, 0, 0, 0, 0, 0, 0], // Percentage achieved per day (0 to 100)
-        monthlyDays: new Array(daysInMonth).fill(0), // Percentage achieved per month day
+        days: [false, false, false, false, false, false, false], // 7 days of week
+        monthlyDays: new Array(daysInMonth).fill(false), // Dynamic monthly days array
         weeklyPercentage: 0,
         monthlyPercentage: 0
     };
@@ -76,6 +70,7 @@ function resetAllData() {
     }
 }
 
+// Edit individual name
 function updateHeroName(id, newName) {
     const hero = heroes.find(h => h.id === id);
     if (hero) {
@@ -83,6 +78,7 @@ function updateHeroName(id, newName) {
     }
 }
 
+// Edit individual task
 function updateChoreText(heroId, choreIndex, newText) {
     const hero = heroes.find(h => h.id === heroId);
     if (hero && hero.chores[choreIndex]) {
@@ -99,22 +95,16 @@ function addChore(heroId) {
     if (hero) {
         hero.chores.push({ text: choreText, completed: false });
         inputEl.value = '';
-        
-        // Recalculate daily task progress percentage when a new task is added
-        updateTodayTaskProgress(hero);
         renderHeroes();
     }
 }
 
-// Automatically update today's task progress accurately based on completed tasks / total tasks ratio
 function toggleChore(heroId, choreIndex) {
     const hero = heroes.find(h => h.id === heroId);
     if (hero && hero.chores[choreIndex]) {
         hero.chores[choreIndex].completed = !hero.chores[choreIndex].completed;
         hero.points += hero.chores[choreIndex].completed ? 10 : -10;
         if (hero.points < 0) hero.points = 0;
-
-        updateTodayTaskProgress(hero);
         renderHeroes();
     }
 }
@@ -124,51 +114,33 @@ function removeChore(heroId, choreIndex) {
     if (hero) {
         if (confirm(`Warning: Are you sure you want to delete the chore "${hero.chores[choreIndex].text}"?`)) {
             hero.chores.splice(choreIndex, 1);
-            
-            updateTodayTaskProgress(hero);
             renderHeroes();
         }
     }
 }
 
-// Calculate precise ratio for today's tasks and overall accumulated percentages
-function updateTodayTaskProgress(hero) {
-    const todayIndex = getCurrentDayIndex();
-    
-    if (hero.chores.length === 0) {
-        hero.days[todayIndex] = 0;
-    } else {
-        const completedCount = hero.chores.filter(c => c.completed).length;
-        // Percentage based strictly on completed tasks vs total tasks for that day
-        hero.days[todayIndex] = Math.round((completedCount / hero.chores.length) * 100);
-    }
-
-    hero.monthlyDays[todayIndex] = hero.days[todayIndex];
-
-    recalculateProgress(hero);
-}
-
-// Recalculate weekly and monthly averages
-function recalculateProgress(hero) {
-    const totalWeekScore = hero.days.reduce((acc, val) => acc + val, 0);
-    hero.weeklyPercentage = Math.round(totalWeekScore / 7);
-
-    const daysInMonth = hero.monthlyDays.length;
-    const totalMonthScore = hero.monthlyDays.reduce((acc, val) => acc + val, 0);
-    hero.monthlyPercentage = Math.round(totalMonthScore / daysInMonth);
-}
-
-// Allow manual override by clicking day box if needed
+// Toggle day button state (Daily progress bar with accumulation math out of 100%)
 function toggleDay(heroId, dayIndex) {
     const hero = heroes.find(h => h.id === heroId);
     if (hero) {
-        hero.days[dayIndex] = hero.days[dayIndex] === 100 ? 0 : 100;
+        hero.days[dayIndex] = !hero.days[dayIndex];
+        
+        // Accumulation: Each day is 1/7 (~14.28%) of the 100% weekly target
+        const completedDays = hero.days.filter(Boolean).length;
+        hero.weeklyPercentage = Math.round((completedDays / 7) * 100);
+
+        // Sync with monthly tracking day (e.g. mapping dayIndex to current month day tracker if desired)
         hero.monthlyDays[dayIndex] = hero.days[dayIndex];
-        recalculateProgress(hero);
+        const daysInMonth = hero.monthlyDays.length;
+        const completedMonthDays = hero.monthlyDays.filter(Boolean).length;
+        // Monthly percentage depends on the number of days in the month (28, 29, 30, or 31)
+        hero.monthlyPercentage = Math.round((completedMonthDays / daysInMonth) * 100);
+
         renderHeroes();
     }
 }
 
+// Photo trigger
 function triggerPhotoUpload(heroId) {
     activePhotoHeroId = heroId;
     globalPhotoInput.click();
@@ -228,6 +200,7 @@ function renderHeroes() {
         const card = document.createElement('div');
         card.className = 'hero-card';
 
+        // Chores HTML with inline editing support
         let choresHTML = '';
         hero.chores.forEach((chore, index) => {
             choresHTML += `
@@ -241,19 +214,20 @@ function renderHeroes() {
             `;
         });
 
+        // Daily Progress Buttons HTML with individual daily percentage metrics
         let daysHTML = '';
-        hero.days.forEach((dayPct, dIndex) => {
-            let statusClass = dayPct > 0 ? 'completed' : 'missed';
-            if (dayPct === 0) statusClass = 'missed';
-            
+        const dayUnitPct = Math.round(100 / 7); // ~14% per day out of 100%
+        hero.days.forEach((isDone, dIndex) => {
+            let statusClass = isDone ? 'completed' : 'missed';
             daysHTML += `
                 <div class="day-box ${statusClass}" onclick="toggleDay(${hero.id}, ${dIndex})" title="Click to toggle day">
                     <span>${dayLabels[dIndex]}</span>
-                    <span class="day-pct">${dayPct}%</span>
+                    <span class="day-pct">${isDone ? dayUnitPct + '%' : '0%'}</span>
                 </div>
             `;
         });
 
+        // Avatar HTML
         let avatarContent = `<span style="font-size: 2rem;">⭐</span><div class="avatar-overlay">Edit Photo</div>`;
         if (hero.photo) {
             avatarContent = `<img src="${hero.photo}" alt="Hero Photo"><div class="avatar-overlay">Edit Photo</div>`;
@@ -286,7 +260,7 @@ function renderHeroes() {
 
             <div class="targets-column">
                 <div class="target-block">
-                    <div class="target-title">Weekly Target:</div>
+                    <div class="target-title">Weekly (1/7):</div>
                     <div class="target-circle">${hero.weeklyPercentage}%</div>
                 </div>
                 <div class="target-block">
@@ -300,6 +274,7 @@ function renderHeroes() {
     });
 }
 
+// Global scope bindings
 window.addChore = addChore;
 window.toggleChore = toggleChore;
 window.removeChore = removeChore;
