@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>HeroTrack</title>
     <link rel="stylesheet" href="style.css">
 </head>
@@ -13,17 +13,16 @@
         <header class="top-bar">
             <div class="brand">
                 <span class="brand-icon">🚀</span>
-                <span class="brand-title" data-i18n="brandTitle">HeroTrack :</span>
+                <span class="brand-title">HeroTrack :</span>
             </div>
             <div class="registration-area">
                 <label for="heroNameInput" class="sr-only">Child Name:</label>
-                <input type="text" id="heroNameInput" data-i18n-placeholder="namePlaceholder" placeholder="Type name here...">
-                <button id="registerBtn" class="btn-register" data-i18n="registerBtn">🚀 Register Hero</button>
+                <input type="text" id="heroNameInput" placeholder="Type name here...">
+                <button id="registerBtn" class="btn-register">🚀 Register Hero</button>
             </div>
             <div class="top-actions">
-                <button id="langToggleBtn" class="btn-lang" title="Switch Language">🌐 العربية / English</button>
-                <button id="leaderboardBtn" class="btn-purple" data-i18n="reportBtn">🏆 Report</button>
-                <button id="resetAllBtn" class="btn-red" data-i18n="resetBtn">🔄 Reset</button>
+                <button id="leaderboardBtn" class="btn-purple">🏆 Leaderboard & Monthly Report</button>
+                <button id="resetAllBtn" class="btn-red">🔄 Reset All Data</button>
             </div>
         </header>
 
@@ -34,22 +33,15 @@
     <!-- Monthly Report Modal Choice -->
     <div id="reportModal" class="modal hidden">
         <div class="modal-content">
-            <h2 data-i18n="modalTitle">🏆 Monthly Report & Leaderboard</h2>
+            <h2>🏆 Monthly Report & Leaderboard</h2>
             <p id="modalMonthInfo">Current Month Statistics:</p>
             <div id="modalReportBody"></div>
-            <button id="closeModalBtn" class="btn-register" style="margin-top: 15px;" data-i18n="closeBtn">Close</button>
+            <button id="closeModalBtn" class="btn-register" style="margin-top: 15px;">Close Report</button>
         </div>
     </div>
 
-    <!-- Day Details Modal -->
-    <div id="dayModal" class="modal hidden">
-        <div class="modal-content">
-            <h2 id="dayModalTitle">📅 Day Tasks Record</h2>
-            <p id="dayModalSubInfo" style="margin-bottom: 10px; font-size: 0.85rem; color: #555;"></p>
-            <div id="dayModalBody"></div>
-            <button id="closeDayModalBtn" class="btn-register" style="margin-top: 15px;" data-i18n="closeBtn">Close</button>
-        </div>
-    </div>
+    <!-- Hidden file input for photo uploads -->
+    <input type="file" id="globalPhotoInput" accept="image/*" class="hidden">
 
     <script src="script.js"></script>
 </body>
