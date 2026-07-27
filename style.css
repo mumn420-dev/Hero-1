@@ -5,15 +5,10 @@
     padding: 0;
 }
 
-html, body {
-    width: 100%;
-    overflow-x: hidden;
-}
-
 body {
     background-color: #2b3e50;
     color: #333;
-    padding: 10px;
+    padding: 20px;
     display: flex;
     justify-content: center;
 }
@@ -21,20 +16,19 @@ body {
 .main-container {
     width: 100%;
     max-width: 1250px;
-    margin: 0 auto;
 }
 
 /* Top Navigation Bar */
 .top-bar {
     background-color: #34495e;
-    padding: 12px 15px;
+    padding: 15px 20px;
     border-radius: 8px;
     display: flex;
     align-items: center;
     justify-content: space-between;
     flex-wrap: wrap;
-    gap: 12px;
-    margin-bottom: 20px;
+    gap: 15px;
+    margin-bottom: 25px;
     box-shadow: 0 4px 6px rgba(0,0,0,0.1);
 }
 
@@ -43,28 +37,26 @@ body {
     align-items: center;
     gap: 8px;
     color: white;
-    font-size: 1.1rem;
+    font-size: 1.2rem;
     font-weight: bold;
 }
 
 .registration-area {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 10px;
     flex: 1;
-    min-width: 250px;
     max-width: 450px;
 }
 
 .registration-area input {
     flex: 1;
-    width: 100%;
-    padding: 9px 12px;
+    padding: 10px 14px;
     border-radius: 6px;
     border: none;
     background-color: #2c3e50;
     color: white;
-    font-size: 0.9rem;
+    font-size: 0.95rem;
 }
 
 .registration-area input::placeholder {
@@ -75,7 +67,7 @@ body {
     background-color: #2ecc71;
     color: white;
     border: none;
-    padding: 9px 15px;
+    padding: 10px 18px;
     border-radius: 6px;
     font-weight: bold;
     cursor: pointer;
@@ -88,68 +80,54 @@ body {
 
 .top-actions {
     display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
+    gap: 10px;
 }
 
-.btn-lang, .btn-purple, .btn-red {
+.btn-purple {
+    background-color: #9b59b6;
+    color: white;
     border: none;
-    padding: 9px 12px;
+    padding: 10px 15px;
     border-radius: 6px;
     font-weight: bold;
     cursor: pointer;
-    color: white;
-    font-size: 0.85rem;
 }
 
-.btn-lang { background-color: #3498db; }
-.btn-lang:hover { background-color: #2980b9; }
+.btn-purple:hover {
+    background-color: #8e44ad;
+}
 
-.btn-purple { background-color: #9b59b6; }
-.btn-purple:hover { background-color: #8e44ad; }
+.btn-red {
+    background-color: #e74c3c;
+    color: white;
+    border: none;
+    padding: 10px 15px;
+    border-radius: 6px;
+    font-weight: bold;
+    cursor: pointer;
+}
 
-.btn-red { background-color: #e74c3c; }
-.btn-red:hover { background-color: #c0392b; }
+.btn-red:hover {
+    background-color: #c0392b;
+}
 
 /* Hero Card Layout */
 .hero-card {
     background-color: #ffffff;
     border-radius: 10px;
-    padding: 15px;
-    margin-bottom: 15px;
+    padding: 25px;
+    margin-bottom: 20px;
     display: grid;
-    grid-template-columns: 160px 1fr 200px 140px;
+    grid-template-columns: 190px 1fr 230px 160px;
     align-items: center;
-    gap: 12px;
+    gap: 20px;
     box-shadow: 0 4px 10px rgba(0,0,0,0.15);
-    width: 100%;
 }
 
-@media (max-width: 900px) {
+@media (max-width: 1000px) {
     .hero-card {
         grid-template-columns: 1fr;
         text-align: center;
-        justify-items: center;
-        padding: 15px 10px;
-    }
-    .registration-area {
-        max-width: 100%;
-        width: 100%;
-    }
-    .top-bar {
-        flex-direction: column;
-        align-items: stretch;
-    }
-    .top-actions {
-        justify-content: center;
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
-    }
-    .top-actions button {
-        width: 100%;
-        text-align: center;
-        padding: 8px 5px;
-        font-size: 0.8rem;
     }
 }
 
@@ -159,16 +137,15 @@ body {
     flex-direction: column;
     align-items: center;
     text-align: center;
-    width: 100%;
 }
 
 .avatar-container {
-    width: 75px;
-    height: 75px;
+    width: 85px;
+    height: 85px;
     border-radius: 50%;
     border: 3px dashed #3498db;
     overflow: hidden;
-    margin-bottom: 6px;
+    margin-bottom: 8px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -183,13 +160,23 @@ body {
     object-fit: cover;
 }
 
+.avatar-overlay {
+    position: absolute;
+    bottom: 0;
+    width: 100%;
+    background: rgba(0,0,0,0.6);
+    color: white;
+    font-size: 0.6rem;
+    padding: 2px 0;
+}
+
 .hero-name-input {
-    font-size: 1rem;
+    font-size: 1.05rem;
     font-weight: bold;
     color: #2c3e50;
-    margin-bottom: 5px;
+    margin-bottom: 6px;
     border: 1px dashed transparent;
-    padding: 3px;
+    padding: 3px 6px;
     border-radius: 4px;
     text-align: center;
     width: 100%;
@@ -204,11 +191,11 @@ body {
 .pts-badge {
     background-color: #f1c40f;
     color: #7f6000;
-    padding: 3px 10px;
-    border-radius: 12px;
+    padding: 4px 12px;
+    border-radius: 15px;
     font-weight: bold;
-    font-size: 0.8rem;
-    margin-bottom: 6px;
+    font-size: 0.85rem;
+    margin-bottom: 8px;
     display: inline-block;
 }
 
@@ -216,9 +203,9 @@ body {
     background-color: transparent;
     color: #e74c3c;
     border: 1px solid #e74c3c;
-    padding: 2px 8px;
+    padding: 3px 10px;
     border-radius: 4px;
-    font-size: 0.75rem;
+    font-size: 0.8rem;
     cursor: pointer;
 }
 
@@ -231,34 +218,32 @@ body {
 .chores-section {
     display: flex;
     flex-direction: column;
-    gap: 6px;
-    width: 100%;
+    gap: 8px;
 }
 
 .add-chore-row {
     display: flex;
-    gap: 6px;
+    gap: 8px;
 }
 
 .add-chore-row input {
     flex: 1;
-    width: 100%;
-    padding: 7px 10px;
+    padding: 8px 12px;
     border: 1px solid #bdc3c7;
     border-radius: 6px;
-    font-size: 0.85rem;
+    font-size: 0.9rem;
 }
 
 .btn-add-chore {
     background-color: #ecf0f1;
     border: 1px solid #bdc3c7;
     color: #2c3e50;
-    width: 32px;
-    height: 32px;
+    width: 36px;
+    height: 36px;
     border-radius: 6px;
     font-weight: bold;
     cursor: pointer;
-    font-size: 1rem;
+    font-size: 1.1rem;
 }
 
 .btn-add-chore:hover {
@@ -270,11 +255,10 @@ body {
     align-items: center;
     justify-content: space-between;
     background-color: #f8f9fa;
-    padding: 5px 8px;
+    padding: 6px 10px;
     border-radius: 6px;
     border: 1px solid #e9ecef;
-    gap: 6px;
-    width: 100%;
+    gap: 8px;
 }
 
 .chore-item.completed {
@@ -287,10 +271,9 @@ body {
     background: transparent;
     border: 1px dashed transparent;
     color: inherit;
-    font-size: 0.85rem;
+    font-size: 0.9rem;
     flex: 1;
-    width: 100%;
-    padding: 2px;
+    padding: 2px 4px;
     border-radius: 4px;
 }
 
@@ -305,8 +288,8 @@ body {
     border: 1px solid #e74c3c;
     color: #e74c3c;
     border-radius: 4px;
-    padding: 2px 5px;
-    font-size: 0.7rem;
+    padding: 2px 6px;
+    font-size: 0.75rem;
     cursor: pointer;
 }
 
@@ -320,28 +303,24 @@ body {
     display: flex;
     flex-direction: column;
     align-items: center;
-    width: 100%;
 }
 
 .progress-label {
-    font-size: 0.8rem;
+    font-size: 0.85rem;
     color: #27ae60;
     font-weight: bold;
-    margin-bottom: 5px;
-    text-align: center;
+    margin-bottom: 6px;
 }
 
 .days-grid {
     display: flex;
-    gap: 2px;
+    gap: 3px;
     justify-content: center;
-    width: 100%;
 }
 
 .day-box {
-    flex: 1;
-    max-width: 24px;
-    height: 48px;
+    width: 28px;
+    height: 52px;
     border: 1px solid #bdc3c7;
     background-color: #fff;
     border-radius: 4px;
@@ -349,46 +328,36 @@ body {
     flex-direction: column;
     align-items: center;
     justify-content: space-between;
-    padding: 2px 0;
-    font-size: 0.55rem;
+    padding: 3px 0;
+    font-size: 0.65rem;
     color: #7f8c8d;
     cursor: pointer;
-    position: relative;
-    overflow: hidden;
-}
-
-/* Ensure inner elements don't block box clicks */
-.day-box * {
-    pointer-events: none;
+    transition: all 0.2s;
 }
 
 .day-box .day-pct {
-    font-size: 0.4rem;
+    font-size: 0.5rem;
     font-weight: bold;
-    z-index: 2;
 }
 
-.day-box span {
-    z-index: 2;
-}
-
-.day-fill {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    width: 100%;
+.day-box.completed {
     background-color: #2ecc71;
-    z-index: 1;
-    transition: height 0.3s ease;
+    border-color: #27ae60;
+    color: white;
 }
 
-/* Targets Column */
+.day-box.missed {
+    background-color: #fadbd8;
+    border-color: #f5b7b1;
+    color: #c0392b;
+}
+
+/* Targets Column (Weekly & Monthly percentages) */
 .targets-column {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 8px;
-    width: 100%;
+    gap: 10px;
 }
 
 .target-block {
@@ -398,24 +367,23 @@ body {
 }
 
 .target-title {
-    font-size: 0.7rem;
+    font-size: 0.75rem;
     color: #2980b9;
     font-weight: bold;
     margin-bottom: 2px;
 }
 
 .target-circle {
-    width: 40px;
-    height: 40px;
+    width: 45px;
+    height: 45px;
+    border: 3px solid #3498db;
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
     font-weight: bold;
-    font-size: 0.7rem;
-    position: relative;
-    background: #fff;
-    color: #333;
+    color: #2980b9;
+    font-size: 0.75rem;
 }
 
 /* Modal View */
@@ -427,7 +395,6 @@ body {
     justify-content: center;
     align-items: center;
     z-index: 1000;
-    padding: 10px;
 }
 
 .modal.hidden {
@@ -436,33 +403,31 @@ body {
 
 .modal-content {
     background: white;
-    padding: 20px;
+    padding: 25px;
     border-radius: 8px;
-    width: 100%;
-    max-width: 450px;
+    width: 90%;
+    max-width: 500px;
     text-align: center;
 }
 
 .modal-content h2 {
     color: #2c3e50;
     margin-bottom: 10px;
-    font-size: 1.2rem;
 }
 
-#modalReportBody, #dayModalBody {
-    margin: 10px 0;
-    max-height: 220px;
+#modalReportBody {
+    margin: 15px 0;
+    max-height: 250px;
     overflow-y: auto;
     text-align: left;
-    font-size: 0.85rem;
+    font-size: 0.9rem;
 }
 
 .empty-state {
     text-align: center;
     color: white;
-    padding: 30px 10px;
+    padding: 40px;
     font-style: italic;
-    font-size: 0.95rem;
 }
 
 .sr-only {
