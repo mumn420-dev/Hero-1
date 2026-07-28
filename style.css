@@ -1,6 +1,6 @@
 /* ---------------------------------------------------------
-   HeroTrack — playful game identity
-   Candy palette, bubbly type, podium + confetti signature.
+   HeroTrack — playful multi-hero identity
+   Candy palette, bubbly type, real hero photos + podium.
 --------------------------------------------------------- */
 
 :root {
@@ -43,6 +43,33 @@ body {
 
 .stage { max-width: 560px; margin: 0 auto; }
 
+.visually-hidden {
+  position: absolute;
+  width: 1px; height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+}
+
+/* ---------- Avatar slot (shared: badge, switcher, board, hero cards) ---------- */
+
+.hero-avatar-slot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  overflow: hidden;
+  font-family: var(--font-display);
+  font-weight: 700;
+  color: var(--white);
+  flex-shrink: 0;
+}
+
+.hero-avatar-slot img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
 /* ---------- Top bar ---------- */
 
 .topbar {
@@ -50,7 +77,7 @@ body {
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  margin-bottom: 18px;
+  margin-bottom: 14px;
   flex-wrap: wrap;
 }
 
@@ -62,22 +89,23 @@ body {
   border: 3px solid var(--purple);
   border-radius: 999px;
   padding: 6px 14px 6px 6px;
+  min-width: 0;
 }
 
-.hero-emoji {
-  font-size: 26px;
-  background: var(--purple);
-  border-radius: 50%;
-  width: 40px;
-  height: 40px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
+.hero-badge .hero-avatar-slot { width: 40px; height: 40px; font-size: 16px; }
 
-.hero-badge-text { display: flex; flex-direction: column; line-height: 1.1; }
+.hero-badge-text { display: flex; flex-direction: column; line-height: 1.1; min-width: 0; }
 .hero-title { font-size: 10px; color: var(--ink-soft); font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; }
-.hero-level { font-family: var(--font-display); font-weight: 700; font-size: 15px; color: var(--purple); }
+.hero-level {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--purple);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 140px;
+}
 
 .wordmark {
   font-family: var(--font-display);
@@ -110,6 +138,53 @@ body {
 @media (min-width: 480px) {
   .wordmark { order: 0; width: auto; text-align: left; }
 }
+
+/* ---------- Hero switcher ---------- */
+
+.hero-switcher {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding: 4px 2px 14px;
+  margin-bottom: 4px;
+}
+
+.hero-switcher-btn {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 2px;
+  width: 60px;
+}
+
+.hero-switcher-btn .hero-avatar-slot {
+  width: 48px;
+  height: 48px;
+  font-size: 18px;
+  border: 3px solid var(--card-line);
+}
+
+.hero-switcher-btn.active .hero-avatar-slot {
+  border-color: var(--pink);
+  box-shadow: 0 0 0 2px #fff, 0 0 0 4px var(--pink);
+}
+
+.hero-switcher-btn span.hero-switcher-name {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--ink-soft);
+  max-width: 60px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hero-switcher-btn.active span.hero-switcher-name { color: var(--pink-deep); }
 
 /* ---------- Tabs ---------- */
 
@@ -162,9 +237,9 @@ body {
   margin-bottom: 16px;
 }
 
-/* ---------- Add quest form ---------- */
+/* ---------- Forms ---------- */
 
-#quest-form {
+#quest-form, #hero-form {
   background: var(--white);
   border: 3px solid var(--card-line);
   border-radius: var(--radius-lg);
@@ -172,7 +247,7 @@ body {
   margin-bottom: 20px;
 }
 
-#quest-name {
+#quest-name, #hero-name {
   width: 100%;
   border: 3px solid var(--card-line);
   border-radius: var(--radius-sm);
@@ -184,37 +259,12 @@ body {
   margin-bottom: 12px;
 }
 
-#quest-name::placeholder { color: #9fb0c9; }
+#quest-name::placeholder, #hero-name::placeholder { color: #9fb0c9; }
 
-#quest-name:focus, .btn-add:focus-visible, .point-choice-btn:focus-visible,
-.quest-check:focus-visible, .quest-remove:focus-visible {
+#quest-name:focus, #hero-name:focus, .btn-add:focus-visible,
+.quest-check:focus-visible, .quest-remove:focus-visible, .photo-upload:focus-within {
   outline: 3px solid var(--purple);
   outline-offset: 2px;
-}
-
-.point-choice {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 14px;
-}
-
-.point-choice-btn {
-  flex: 1;
-  border: 3px solid var(--card-line);
-  background: var(--white);
-  border-radius: var(--radius-sm);
-  padding: 8px 4px;
-  font-family: var(--font-display);
-  font-weight: 700;
-  font-size: 12px;
-  color: var(--ink-soft);
-  cursor: pointer;
-}
-
-.point-choice-btn.active {
-  border-color: var(--green);
-  color: #1b8a5a;
-  background: #e6fbf1;
 }
 
 .btn-add {
@@ -233,9 +283,40 @@ body {
 
 .btn-add:hover { background: var(--pink-deep); transform: translateY(-1px); }
 
-/* ---------- Quest cards ---------- */
+/* ---------- Hero form: photo upload ---------- */
 
-.quests { display: flex; flex-direction: column; gap: 10px; }
+.hero-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.hero-row #hero-name { margin-bottom: 0; }
+
+.photo-upload {
+  flex-shrink: 0;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: 3px dashed var(--purple);
+  background: #f4f1ff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.photo-upload img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* ---------- Quest / hero cards ---------- */
+
+.quests { display: flex; flex-direction: column; gap: 10px; margin-bottom: 4px; }
 
 .quest-card {
   display: flex;
@@ -284,25 +365,8 @@ body {
   word-break: break-word;
 }
 
-.streak-pill {
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--ink-soft);
-}
-
+.streak-pill { font-size: 12px; font-weight: 700; color: var(--ink-soft); }
 .streak-number { color: var(--pink-deep); }
-
-.quest-points {
-  flex-shrink: 0;
-  font-family: var(--font-display);
-  font-weight: 800;
-  font-size: 14px;
-  color: var(--yellow-deep, #b9860a);
-  background: #fff6de;
-  border: 2px solid var(--yellow);
-  border-radius: 999px;
-  padding: 4px 10px;
-}
 
 .quest-remove {
   flex-shrink: 0;
@@ -317,58 +381,8 @@ body {
 
 .quest-remove:hover { color: var(--pink-deep); background: #fff0f6; }
 
-/* ---------- Heroes management ---------- */
-
-#hero-form {
-  background: var(--white);
-  border: 3px solid var(--card-line);
-  border-radius: var(--radius-lg);
-  padding: 16px;
-  margin-bottom: 20px;
-}
-
-#hero-form .hero-row {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 12px;
-}
-
-#hero-avatar {
-  width: 60px;
-  flex-shrink: 0;
-  text-align: center;
-  font-size: 20px;
-  border: 3px solid var(--card-line);
-  border-radius: var(--radius-sm);
-  padding: 10px 4px;
-  margin-bottom: 12px;
-}
-
-#hero-name {
-  flex: 1;
-  width: 100%;
-  border: 3px solid var(--card-line);
-  border-radius: var(--radius-sm);
-  padding: 12px 14px;
-  font-family: var(--font-body);
-  font-weight: 600;
-  font-size: 15px;
-  color: var(--ink);
-  margin-bottom: 12px;
-}
-
-.hero-card-avatar {
-  font-size: 24px;
-  flex-shrink: 0;
-  width: 38px;
-  text-align: center;
-}
-
-.hero-card-difficulty {
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--ink-soft);
-}
+.hero-card-avatar { width: 44px; height: 44px; font-size: 16px; }
+.hero-card-sub { font-size: 12px; font-weight: 700; color: var(--ink-soft); }
 
 /* ---------- Empty state ---------- */
 
@@ -390,20 +404,12 @@ body {
   justify-content: space-between;
   align-items: baseline;
   margin-bottom: 14px;
+  flex-wrap: wrap;
+  gap: 4px;
 }
 
-.board-header h2 {
-  font-family: var(--font-display);
-  font-size: 20px;
-  margin: 0;
-  color: var(--purple);
-}
-
-.board-sub {
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--ink-soft);
-}
+.board-header h2 { font-family: var(--font-display); font-size: 20px; margin: 0; color: var(--purple); }
+.board-sub { font-size: 12px; font-weight: 700; color: var(--ink-soft); }
 
 .podium {
   display: grid;
@@ -414,6 +420,10 @@ body {
 }
 
 .podium-spot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
   background: var(--white);
   border: 3px solid var(--card-line);
   border-radius: var(--radius-md) var(--radius-md) 0 0;
@@ -425,9 +435,9 @@ body {
 .podium-spot.rank-2 { border-color: #c6d0e0; }
 .podium-spot.rank-3 { border-color: #e2b48a; }
 
-.podium-medal { font-size: 22px; display: block; }
-.podium-avatar { font-size: 26px; display: block; margin: 4px 0; }
-.podium-name { font-family: var(--font-display); font-weight: 700; font-size: 12px; display: block; }
+.podium-medal { font-size: 22px; }
+.podium-spot .hero-avatar-slot { width: 40px; height: 40px; font-size: 15px; }
+.podium-name { font-family: var(--font-display); font-weight: 700; font-size: 12px; }
 .podium-points { font-size: 11px; color: var(--ink-soft); font-weight: 700; }
 
 .board-list {
@@ -449,11 +459,11 @@ body {
   padding: 10px 14px;
 }
 
-.board-row.is-you { border-color: var(--pink); background: #fff0f6; }
+.board-row.is-active { border-color: var(--pink); background: #fff0f6; }
 
 .board-rank { font-family: var(--font-display); font-weight: 800; font-size: 14px; color: var(--ink-soft); width: 22px; }
-.board-avatar { font-size: 18px; }
-.board-name { flex: 1; font-weight: 700; font-size: 14px; }
+.board-avatar { width: 30px; height: 30px; font-size: 12px; }
+.board-name { flex: 1; font-weight: 700; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .board-points { font-family: var(--font-display); font-weight: 800; font-size: 14px; color: var(--pink-deep); }
 
 /* ---------- Footer ---------- */
@@ -468,13 +478,7 @@ body {
 
 /* ---------- Confetti ---------- */
 
-.confetti-layer {
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  overflow: hidden;
-  z-index: 50;
-}
+.confetti-layer { position: fixed; inset: 0; pointer-events: none; overflow: hidden; z-index: 50; }
 
 .confetti-piece {
   position: absolute;
