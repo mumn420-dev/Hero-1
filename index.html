@@ -14,23 +14,25 @@
 <div class="stage">
 
   <header class="topbar">
-    <div class="hero-badge">
-      <span class="hero-emoji" id="hero-emoji">🦸</span>
+    <div class="hero-badge" id="active-hero-badge">
+      <span class="hero-avatar-slot" id="active-hero-avatar"></span>
       <div class="hero-badge-text">
-        <span class="hero-title">You are</span>
-        <span class="hero-level">Level <span id="level-number">1</span></span>
+        <span class="hero-title">Playing as</span>
+        <span class="hero-level"><span id="active-hero-name">Add a hero</span></span>
       </div>
     </div>
     <h1 class="wordmark">HeroTrack</h1>
     <div class="point-pill">
-      <span class="point-star">⭐</span>
-      <span id="total-points">0</span>
-      <span class="point-label">points</span>
+      <span class="point-star">📊</span>
+      <span id="total-points">0%</span>
+      <span class="point-label">today</span>
     </div>
   </header>
 
+  <div class="hero-switcher" id="hero-switcher" aria-label="Switch hero"></div>
+
   <nav class="tabs" id="tabs" role="tablist">
-    <button class="tab active" data-tab="quests" role="tab" aria-selected="true">🎯 My Quests</button>
+    <button class="tab active" data-tab="quests" role="tab" aria-selected="true">🎯 Quests</button>
     <button class="tab" data-tab="weekly" role="tab" aria-selected="false">🗓️ Weekly</button>
     <button class="tab" data-tab="monthly" role="tab" aria-selected="false">🏆 Monthly</button>
     <button class="tab" data-tab="heroes" role="tab" aria-selected="false">🧙 Heroes</button>
@@ -45,12 +47,7 @@
     </div>
 
     <form id="quest-form" autocomplete="off">
-      <input type="text" id="quest-name" placeholder="What's your quest? e.g. Brush teeth" maxlength="50" required>
-      <div class="point-choice" id="point-choice" role="radiogroup" aria-label="Points for this quest">
-        <button type="button" class="point-choice-btn" data-points="5">Quick +5</button>
-        <button type="button" class="point-choice-btn active" data-points="10">Standard +10</button>
-        <button type="button" class="point-choice-btn" data-points="20">Epic +20</button>
-      </div>
+      <input type="text" id="quest-name" placeholder="What's the quest? e.g. Brush teeth" maxlength="50" required>
       <button type="submit" class="btn-add">Add quest ➕</button>
     </form>
 
@@ -58,6 +55,9 @@
 
     <p class="empty-state" id="empty-state" hidden>
       No quests yet! Add your first one above and start earning stars. ⭐
+    </p>
+    <p class="empty-state" id="no-hero-state" hidden>
+      Add a hero first on the 🧙 Heroes tab, then come back to give them quests.
     </p>
   </section>
 
@@ -69,6 +69,9 @@
     </div>
     <div class="podium" id="weekly-podium"></div>
     <ol class="board-list" id="weekly-list"></ol>
+    <p class="empty-state" id="weekly-empty-state" hidden>
+      Add some heroes to see them on the leaderboard.
+    </p>
   </section>
 
   <!-- MONTHLY TAB -->
@@ -79,24 +82,26 @@
     </div>
     <div class="podium" id="monthly-podium"></div>
     <ol class="board-list" id="monthly-list"></ol>
+    <p class="empty-state" id="monthly-empty-state" hidden>
+      Add some heroes to see them on the leaderboard.
+    </p>
   </section>
 
   <!-- HEROES TAB -->
   <section class="panel hidden" id="panel-heroes" data-panel="heroes">
     <div class="board-header">
-      <h2>Manage Heroes</h2>
-      <span class="board-sub">These are your leaderboard rivals</span>
+      <h2>Your Heroes</h2>
+      <span class="board-sub">Add anyone — including you!</span>
     </div>
 
     <form id="hero-form" autocomplete="off">
       <div class="hero-row">
-        <input type="text" id="hero-avatar" placeholder="🐉" maxlength="4" required>
-        <input type="text" id="hero-name" placeholder="Rival's name, e.g. Zappy Zed" maxlength="30" required>
-      </div>
-      <div class="point-choice" id="hero-difficulty" role="radiogroup" aria-label="Rival difficulty">
-        <button type="button" class="point-choice-btn" data-max="120">Rookie</button>
-        <button type="button" class="point-choice-btn active" data-max="220">Pro</button>
-        <button type="button" class="point-choice-btn" data-max="320">Legend</button>
+        <label class="photo-upload" for="hero-photo" id="photo-upload-label">
+          <span id="hero-photo-placeholder">📷</span>
+          <img id="hero-photo-preview" alt="" hidden>
+        </label>
+        <input type="file" id="hero-photo" accept="image/*" class="visually-hidden">
+        <input type="text" id="hero-name" placeholder="Hero's name, e.g. Mom, Max, Me" maxlength="30" required>
       </div>
       <button type="submit" class="btn-add">Add hero ➕</button>
     </form>
@@ -104,12 +109,12 @@
     <div class="quests" id="hero-list"></div>
 
     <p class="empty-state" id="hero-empty-state" hidden>
-      No rival heroes yet. Add one above to fill out the leaderboard!
+      No heroes yet. Add one above — tap the camera to give them a photo.
     </p>
   </section>
 
   <footer class="ledger-footer">
-    <span>Rival heroes are just-for-fun bots so the board never feels empty — swap in real friends anytime with a shared backend.</span>
+    <span>Everything is saved on this device only.</span>
   </footer>
 
 </div>
@@ -127,17 +132,16 @@
         <span class="streak-pill">🔥 <span class="streak-number">0</span> day streak</span>
       </div>
     </div>
-    <div class="quest-points">+<span class="points-value"></span></div>
     <button class="quest-remove" type="button" aria-label="Delete quest">✕</button>
   </article>
 </template>
 
 <template id="hero-card-template">
   <article class="quest-card hero-card">
-    <span class="hero-card-avatar"></span>
+    <span class="hero-avatar-slot hero-card-avatar"></span>
     <div class="quest-text">
       <h3 class="quest-name hero-card-name"></h3>
-      <div class="quest-meta hero-card-difficulty"></div>
+      <div class="quest-meta hero-card-sub"></div>
     </div>
     <button class="quest-remove" type="button" aria-label="Remove hero">✕</button>
   </article>
@@ -146,7 +150,7 @@
 <template id="board-row-template">
   <li class="board-row">
     <span class="board-rank"></span>
-    <span class="board-avatar"></span>
+    <span class="hero-avatar-slot board-avatar"></span>
     <span class="board-name"></span>
     <span class="board-points"></span>
   </li>
