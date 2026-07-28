@@ -1,71 +1,85 @@
 (() => {
   "use strict";
 
-  const STORAGE_KEY = "herotrack.quests.v2";
-  const RIVALS_KEY = "herotrack.rivals.v1";
-  const YOU_NAME = "You";
-  const YOU_AVATAR = "🦸";
+  const HEROES_KEY = "herotrack.heroes.v1";
+  const QUESTS_KEY = "herotrack.quests.v3";
+  const ACTIVE_KEY = "herotrack.activeHero.v1";
 
-  const DEFAULT_RIVALS = [
-    { id: "r1", name: "Turbo Tori", avatar: "🐯", max: 280 },
-    { id: "r2", name: "Captain Cloud", avatar: "☁️", max: 180 },
-    { id: "r3", name: "Mega Mochi", avatar: "🍡", max: 220 },
-    { id: "r4", name: "Ninja Newt", avatar: "🦎", max: 150 },
-    { id: "r5", name: "Sir Waffles", avatar: "🧇", max: 200 },
-  ];
-
-  function loadRivals() {
-    try {
-      const raw = localStorage.getItem(RIVALS_KEY);
-      if (raw) return JSON.parse(raw);
-      saveRivals(DEFAULT_RIVALS);
-      return DEFAULT_RIVALS;
-    } catch {
-      return DEFAULT_RIVALS;
-    }
-  }
-
-  function saveRivals(rivals) {
-    localStorage.setItem(RIVALS_KEY, JSON.stringify(rivals));
-  }
+  const AVATAR_COLORS = ["#ff6fa5", "#8c6fff", "#34cf85", "#ffb23f", "#5fb8ff", "#ff8f6b"];
 
   // ----- DOM refs -----
+  const activeHeroAvatarEl = document.getElementById("active-hero-avatar");
+  const activeHeroNameEl = document.getElementById("active-hero-name");
+  const totalPointsEl = document.getElementById("total-points");
+  const heroSwitcher = document.getElementById("hero-switcher");
+  const tabs = document.getElementById("tabs");
+
   const questList = document.getElementById("quest-list");
   const emptyState = document.getElementById("empty-state");
+  const noHeroState = document.getElementById("no-hero-state");
   const form = document.getElementById("quest-form");
   const nameInput = document.getElementById("quest-name");
-  const pointChoice = document.getElementById("point-choice");
   const questTemplate = document.getElementById("quest-template");
-  const boardRowTemplate = document.getElementById("board-row-template");
-  const totalPointsEl = document.getElementById("total-points");
-  const levelNumberEl = document.getElementById("level-number");
   const todayLabel = document.getElementById("today-label");
   const todayPointsEarned = document.getElementById("today-points-earned");
-  const tabs = document.getElementById("tabs");
   const confettiLayer = document.getElementById("confetti-layer");
+
   const heroForm = document.getElementById("hero-form");
-  const heroAvatarInput = document.getElementById("hero-avatar");
+  const heroPhotoInput = document.getElementById("hero-photo");
+  const heroPhotoPreview = document.getElementById("hero-photo-preview");
+  const heroPhotoPlaceholder = document.getElementById("hero-photo-placeholder");
   const heroNameInput = document.getElementById("hero-name");
-  const heroDifficulty = document.getElementById("hero-difficulty");
   const heroList = document.getElementById("hero-list");
   const heroEmptyState = document.getElementById("hero-empty-state");
   const heroCardTemplate = document.getElementById("hero-card-template");
+  const boardRowTemplate = document.getElementById("board-row-template");
 
-  let selectedPoints = 10;
-  let selectedHeroMax = 220;
+  let pendingPhoto = null; // dataURL for the hero currently being added
 
-  // ----- Storage -----
-  function loadQuests() {
+  // ----- Storage: heroes -----
+  function loadHeroes() {
     try {
-      const raw = localStorage.getItem(STORAGE_KEY);
+      const raw = localStorage.getItem(HEROES_KEY);
       return raw ? JSON.parse(raw) : [];
     } catch {
       return [];
     }
   }
+  function saveHeroes(heroes) {
+    localStorage.setItem(HEROES_KEY, JSON.stringify(heroes));
+  }
 
-  function saveQuests(quests) {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(quests));
+  // ----- Storage: quests, keyed by heroId -----
+  function loadAllQuests() {
+    try {
+      const raw = localStorage.getItem(QUESTS_KEY);
+      return raw ? JSON.parse(raw) : {};
+    } catch {
+      return {};
+    }
+  }
+  function saveAllQuests(all) {
+    localStorage.setItem(QUESTS_KEY, JSON.stringify(all));
+  }
+  function getQuestsFor(heroId) {
+    const all = loadAllQuests();
+    return all[heroId] || [];
+  }
+  function setQuestsFor(heroId, quests) {
+    const all = loadAllQuests();
+    all[heroId] = quests;
+    saveAllQuests(all);
+  }
+
+  // ----- Active hero -----
+  function getActiveHeroId() {
+    const stored = localStorage.getItem(ACTIVE_KEY);
+    const heroes = loadHeroes();
+    if (stored && heroes.some((h) => h.id === stored)) return stored;
+    return heroes.length ? heroes[0].id : null;
+  }
+  function setActiveHeroId(id) {
+    localStorage.setItem(ACTIVE_KEY, id);
   }
 
   // ----- Date helpers -----
@@ -75,10 +89,7 @@
     const d = String(date.getDate()).padStart(2, "0");
     return `${y}-${m}-${d}`;
   }
-
-  function todayKey() {
-    return formatDateKey(new Date());
-  }
+  function todayKey() { return formatDateKey(new Date()); }
 
   function startOfWeek(date) {
     const d = new Date(date);
@@ -86,15 +97,6 @@
     d.setDate(d.getDate() - day);
     d.setHours(0, 0, 0, 0);
     return d;
-  }
-
-  function weekKey(date) {
-    const start = startOfWeek(date);
-    return formatDateKey(start);
-  }
-
-  function monthKey(date) {
-    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
   }
 
   function daysInMonth(date) {
@@ -105,9 +107,7 @@
   function currentStreak(quest) {
     let streak = 0;
     const cursor = new Date();
-    if (!quest.completions[formatDateKey(cursor)]) {
-      cursor.setDate(cursor.getDate() - 1);
-    }
+    if (!quest.completions[formatDateKey(cursor)]) cursor.setDate(cursor.getDate() - 1);
     while (quest.completions[formatDateKey(cursor)]) {
       streak++;
       cursor.setDate(cursor.getDate() - 1);
@@ -115,81 +115,158 @@
     return streak;
   }
 
-  // ----- Points math -----
-  function pointsOnDate(quests, key) {
-    return quests.reduce((sum, q) => sum + (q.completions[key] ? q.points : 0), 0);
+  // ----- Percentage math -----
+  function completionsOnDate(quests, key) {
+    return quests.reduce((sum, q) => sum + (q.completions[key] ? 1 : 0), 0);
   }
-
-  function totalPoints(quests) {
-    let sum = 0;
-    quests.forEach((q) => {
-      Object.keys(q.completions).forEach((key) => {
-        if (q.completions[key]) sum += q.points;
-      });
-    });
-    return sum;
+  function todayPercent(quests) {
+    if (quests.length === 0) return 0;
+    const done = completionsOnDate(quests, todayKey());
+    return Math.round((done / quests.length) * 100);
   }
-
-  function weeklyPoints(quests) {
+  function rangePercent(quests, dayKeys) {
+    if (quests.length === 0) return 0;
+    const possible = quests.length * dayKeys.length;
+    if (possible === 0) return 0;
+    const done = dayKeys.reduce((sum, key) => sum + completionsOnDate(quests, key), 0);
+    return Math.min(100, Math.round((done / possible) * 100));
+  }
+  function weeklyPercent(quests) {
     const start = startOfWeek(new Date());
-    let sum = 0;
+    const keys = [];
     for (let i = 0; i < 7; i++) {
       const d = new Date(start);
       d.setDate(d.getDate() + i);
       if (d > new Date()) break;
-      sum += pointsOnDate(quests, formatDateKey(d));
+      keys.push(formatDateKey(d));
     }
-    return sum;
+    return rangePercent(quests, keys);
   }
-
-  function monthlyPoints(quests) {
+  function monthlyPercent(quests) {
     const now = new Date();
-    let sum = 0;
+    const keys = [];
     for (let day = 1; day <= now.getDate(); day++) {
-      const d = new Date(now.getFullYear(), now.getMonth(), day);
-      sum += pointsOnDate(quests, formatDateKey(d));
+      keys.push(formatDateKey(new Date(now.getFullYear(), now.getMonth(), day)));
     }
-    return sum;
+    return rangePercent(quests, keys);
   }
 
-  // ----- Deterministic "rival" scores (seeded, no server needed) -----
-  function seededRandom(seedStr) {
+  // ----- Avatars (photo or colored initials) -----
+  function colorForId(id) {
     let h = 0;
-    for (let i = 0; i < seedStr.length; i++) {
-      h = (Math.imul(31, h) + seedStr.charCodeAt(i)) | 0;
+    for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
+    return AVATAR_COLORS[h % AVATAR_COLORS.length];
+  }
+  function initialsFor(name) {
+    const parts = name.trim().split(/\s+/);
+    const first = parts[0]?.[0] || "?";
+    const second = parts[1]?.[0] || "";
+    return (first + second).toUpperCase();
+  }
+  function buildAvatarNode(hero, extraClass) {
+    const slot = document.createElement("span");
+    slot.className = extraClass ? `hero-avatar-slot ${extraClass}` : "hero-avatar-slot";
+    if (hero.photo) {
+      const img = document.createElement("img");
+      img.src = hero.photo;
+      img.alt = "";
+      slot.appendChild(img);
+    } else {
+      slot.style.background = colorForId(hero.id);
+      slot.textContent = initialsFor(hero.name);
     }
-    return function next() {
-      h = Math.imul(h ^ (h >>> 15), 2246822519);
-      h ^= h >>> 13;
-      h = Math.imul(h, 3266489917);
-      h ^= h >>> 16;
-      return (h >>> 0) / 4294967296;
-    };
+    return slot;
   }
 
-  function rivalScore(rival, periodKey, fractionElapsed) {
-    const rng = seededRandom(rival.name + periodKey);
-    const base = rng() * rival.max * fractionElapsed;
-    const jitter = rng() * 12;
-    return Math.round(base + jitter);
+  // ----- Photo resize (keeps localStorage small) -----
+  function readAndResizePhoto(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onerror = () => reject(new Error("Could not read file"));
+      reader.onload = () => {
+        const img = new Image();
+        img.onerror = () => reject(new Error("Could not read image"));
+        img.onload = () => {
+          const size = 160;
+          const canvas = document.createElement("canvas");
+          canvas.width = size;
+          canvas.height = size;
+          const ctx = canvas.getContext("2d");
+          const scale = Math.max(size / img.width, size / img.height);
+          const w = img.width * scale;
+          const h = img.height * scale;
+          ctx.drawImage(img, (size - w) / 2, (size - h) / 2, w, h);
+          resolve(canvas.toDataURL("image/jpeg", 0.85));
+        };
+        img.src = reader.result;
+      };
+      reader.readAsDataURL(file);
+    });
   }
 
-  function weekFractionElapsed() {
-    const day = (new Date().getDay() + 6) % 7; // 0=Mon
-    return (day + 1) / 7;
+  // ----- Rendering: header + switcher -----
+  function renderHeader() {
+    const heroes = loadHeroes();
+    const activeId = getActiveHeroId();
+    const active = heroes.find((h) => h.id === activeId);
+
+    activeHeroAvatarEl.innerHTML = "";
+    if (active) {
+      activeHeroAvatarEl.appendChild(buildAvatarNode(active));
+      activeHeroNameEl.textContent = active.name;
+      totalPointsEl.textContent = `${todayPercent(getQuestsFor(active.id))}%`;
+    } else {
+      activeHeroAvatarEl.textContent = "🦸";
+      activeHeroNameEl.textContent = "Add a hero";
+      totalPointsEl.textContent = "0%";
+    }
+
+    todayLabel.textContent = new Date().toLocaleDateString(undefined, {
+      weekday: "long", month: "short", day: "numeric",
+    });
   }
 
-  function monthFractionElapsed() {
-    const now = new Date();
-    return now.getDate() / daysInMonth(now);
+  function renderSwitcher() {
+    const heroes = loadHeroes();
+    const activeId = getActiveHeroId();
+    heroSwitcher.innerHTML = "";
+    heroes.forEach((hero) => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "hero-switcher-btn" + (hero.id === activeId ? " active" : "");
+      btn.appendChild(buildAvatarNode(hero));
+      const label = document.createElement("span");
+      label.className = "hero-switcher-name";
+      label.textContent = hero.name;
+      btn.appendChild(label);
+      btn.addEventListener("click", () => {
+        setActiveHeroId(hero.id);
+        renderAll();
+      });
+      heroSwitcher.appendChild(btn);
+    });
   }
 
-  // ----- Rendering: quests -----
-  function renderQuests(quests) {
-    emptyState.hidden = quests.length > 0;
+  // ----- Rendering: quests for active hero -----
+  function renderQuests() {
+    const heroes = loadHeroes();
+    const activeId = getActiveHeroId();
+    const active = heroes.find((h) => h.id === activeId);
+
+    noHeroState.hidden = !!active;
+    form.hidden = !active;
     questList.innerHTML = "";
+
+    if (!active) {
+      emptyState.hidden = true;
+      todayPointsEarned.textContent = "";
+      return;
+    }
+
+    const quests = getQuestsFor(active.id);
+    emptyState.hidden = quests.length > 0;
+
     const key = todayKey();
-    let pointsToday = 0;
     let doneCount = 0;
 
     quests.forEach((quest) => {
@@ -198,178 +275,166 @@
       const nameEl = node.querySelector(".quest-name");
       const streakNumEl = node.querySelector(".streak-number");
       const removeBtn = node.querySelector(".quest-remove");
-      const pointsValueEl = node.querySelector(".points-value");
 
       const doneToday = !!quest.completions[key];
-      if (doneToday) {
-        pointsToday += quest.points;
-        doneCount++;
-      }
+      if (doneToday) doneCount++;
 
       nameEl.textContent = quest.name;
-      pointsValueEl.textContent = String(quest.points);
       checkBtn.setAttribute("aria-pressed", String(doneToday));
       streakNumEl.textContent = String(currentStreak(quest));
 
-      checkBtn.addEventListener("click", () => toggleCompletion(quest.id));
-      removeBtn.addEventListener("click", () => removeQuest(quest.id, quest.name));
+      checkBtn.addEventListener("click", () => toggleCompletion(active.id, quest.id));
+      removeBtn.addEventListener("click", () => removeQuest(active.id, quest.id, quest.name));
 
       questList.appendChild(node);
     });
 
-    todayPointsEarned.textContent = `+${pointsToday} today`;
-    if (quests.length > 0 && doneCount === quests.length) {
-      burstConfetti();
-    }
+    const pct = quests.length ? Math.round((doneCount / quests.length) * 100) : 0;
+    todayPointsEarned.textContent = quests.length ? `${pct}% today (${doneCount}/${quests.length})` : "";
+    if (quests.length > 0 && doneCount === quests.length) burstConfetti();
   }
 
-  // ----- Rendering: leaderboards -----
+  // ----- Rendering: leaderboards among real heroes -----
   function renderBoard(kind) {
-    const quests = loadQuests();
-    const isWeekly = kind === "weekly";
-    const periodKey = isWeekly ? weekKey(new Date()) : monthKey(new Date());
-    const fraction = isWeekly ? weekFractionElapsed() : monthFractionElapsed();
-    const yourScore = isWeekly ? weeklyPoints(quests) : monthlyPoints(quests);
-
-    const rivals = loadRivals();
-    const entries = rivals.map((r) => ({
-      name: r.name,
-      avatar: r.avatar,
-      score: rivalScore(r, periodKey, fraction),
-    }));
-    entries.push({ name: YOU_NAME, avatar: YOU_AVATAR, score: yourScore, isYou: true });
-    entries.sort((a, b) => b.score - a.score);
-
+    const heroes = loadHeroes();
+    const activeId = getActiveHeroId();
     const podiumEl = document.getElementById(`${kind}-podium`);
     const listEl = document.getElementById(`${kind}-list`);
+    const emptyEl = document.getElementById(`${kind}-empty-state`);
     podiumEl.innerHTML = "";
     listEl.innerHTML = "";
 
+    emptyEl.hidden = heroes.length > 0;
+    if (heroes.length === 0) return;
+
+    const entries = heroes.map((hero) => {
+      const quests = getQuestsFor(hero.id);
+      const score = kind === "weekly" ? weeklyPercent(quests) : monthlyPercent(quests);
+      return { hero, score };
+    });
+    entries.sort((a, b) => b.score - a.score);
+
     const medals = ["🥇", "🥈", "🥉"];
-    const podiumOrder = [1, 0, 2]; // visual order: 2nd, 1st, 3rd
+    const podiumOrder = [1, 0, 2];
     podiumOrder.forEach((idx) => {
       const entry = entries[idx];
       if (!entry) return;
       const spot = document.createElement("div");
       spot.className = `podium-spot rank-${idx + 1}`;
-      spot.innerHTML = `
-        <span class="podium-medal">${medals[idx]}</span>
-        <span class="podium-avatar">${entry.avatar}</span>
-        <span class="podium-name">${entry.isYou ? "You" : entry.name}</span>
-        <span class="podium-points">${entry.score} pts</span>
-      `;
+
+      const medal = document.createElement("span");
+      medal.className = "podium-medal";
+      medal.textContent = medals[idx];
+
+      const avatar = buildAvatarNode(entry.hero);
+
+      const name = document.createElement("span");
+      name.className = "podium-name";
+      name.textContent = entry.hero.name;
+
+      const points = document.createElement("span");
+      points.className = "podium-points";
+      points.textContent = `${entry.score}%`;
+
+      spot.append(medal, avatar, name, points);
       podiumEl.appendChild(spot);
     });
 
     entries.slice(3).forEach((entry, i) => {
       const row = boardRowTemplate.content.cloneNode(true);
       const rowEl = row.querySelector(".board-row");
-      if (entry.isYou) rowEl.classList.add("is-you");
+      if (entry.hero.id === activeId) rowEl.classList.add("is-active");
       row.querySelector(".board-rank").textContent = `#${i + 4}`;
-      row.querySelector(".board-avatar").textContent = entry.avatar;
-      row.querySelector(".board-name").textContent = entry.isYou ? "You" : entry.name;
-      row.querySelector(".board-points").textContent = `${entry.score} pts`;
+      row.querySelector(".board-avatar").replaceWith(buildAvatarNode(entry.hero, "board-avatar"));
+      row.querySelector(".board-name").textContent = entry.hero.name;
+      row.querySelector(".board-points").textContent = `${entry.score}%`;
       listEl.appendChild(row);
     });
+
+    // keep board-avatar class findable next render (replaceWith drops the class)
   }
 
-  // ----- Header (level / total points) -----
-  function renderHeader(quests) {
-    const total = totalPoints(quests);
-    totalPointsEl.textContent = String(total);
-    levelNumberEl.textContent = String(Math.floor(total / 100) + 1);
-    todayLabel.textContent = new Date().toLocaleDateString(undefined, {
-      weekday: "long",
-      month: "short",
-      day: "numeric",
-    });
-  }
-
-  function difficultyLabel(max) {
-    if (max <= 120) return "Rookie";
-    if (max <= 220) return "Pro";
-    return "Legend";
-  }
-
-  function renderHeroes() {
-    const rivals = loadRivals();
-    heroEmptyState.hidden = rivals.length > 0;
+  // ----- Rendering: hero management list -----
+  function renderHeroManagement() {
+    const heroes = loadHeroes();
+    heroEmptyState.hidden = heroes.length > 0;
     heroList.innerHTML = "";
-    rivals.forEach((rival) => {
+    heroes.forEach((hero) => {
       const node = heroCardTemplate.content.cloneNode(true);
-      node.querySelector(".hero-card-avatar").textContent = rival.avatar;
-      node.querySelector(".hero-card-name").textContent = rival.name;
-      node.querySelector(".hero-card-difficulty").textContent = `${difficultyLabel(rival.max)} rival`;
-      node.querySelector(".quest-remove").addEventListener("click", () => removeHero(rival.id, rival.name));
+      node.querySelector(".hero-card-avatar").replaceWith(buildAvatarNode(hero, "hero-card-avatar"));
+      node.querySelector(".hero-card-name").textContent = hero.name;
+      const questCount = getQuestsFor(hero.id).length;
+      node.querySelector(".hero-card-sub").textContent = `${questCount} quest${questCount === 1 ? "" : "s"}`;
+      node.querySelector(".quest-remove").addEventListener("click", () => removeHero(hero.id, hero.name));
       heroList.appendChild(node);
     });
   }
 
-  function addHero(avatar, name, max) {
-    const rivals = loadRivals();
-    rivals.push({
-      id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()),
-      name,
-      avatar,
-      max,
-    });
-    saveRivals(rivals);
-    renderHeroes();
+  function renderAll() {
+    renderHeader();
+    renderSwitcher();
+    renderQuests();
     renderBoard("weekly");
     renderBoard("monthly");
+    renderHeroManagement();
   }
 
-  function removeHero(id, name) {
-    if (!confirm(`Remove "${name}" from the leaderboard?`)) return;
-    const rivals = loadRivals().filter((r) => r.id !== id);
-    saveRivals(rivals);
-    renderHeroes();
-    renderBoard("weekly");
-    renderBoard("monthly");
-  }
-
-  function render() {
-    const quests = loadQuests();
-    renderHeader(quests);
-    renderQuests(quests);
-    renderBoard("weekly");
-    renderBoard("monthly");
-    renderHeroes();
-  }
-
-  // ----- Actions -----
-  function toggleCompletion(id) {
-    const quests = loadQuests();
-    const quest = quests.find((q) => q.id === id);
+  // ----- Actions: quests -----
+  function toggleCompletion(heroId, questId) {
+    const quests = getQuestsFor(heroId);
+    const quest = quests.find((q) => q.id === questId);
     if (!quest) return;
     const key = todayKey();
-    if (quest.completions[key]) {
-      delete quest.completions[key];
-    } else {
-      quest.completions[key] = true;
-    }
-    saveQuests(quests);
-    render();
+    if (quest.completions[key]) delete quest.completions[key];
+    else quest.completions[key] = true;
+    setQuestsFor(heroId, quests);
+    renderAll();
   }
 
-  function removeQuest(id, name) {
+  function removeQuest(heroId, questId, name) {
     if (!confirm(`Delete "${name}"? This can't be undone.`)) return;
-    const quests = loadQuests().filter((q) => q.id !== id);
-    saveQuests(quests);
-    render();
+    const quests = getQuestsFor(heroId).filter((q) => q.id !== questId);
+    setQuestsFor(heroId, quests);
+    renderAll();
   }
 
-  function addQuest(name, points) {
-    const quests = loadQuests();
+  function addQuest(heroId, name) {
+    const quests = getQuestsFor(heroId);
     quests.push({
       id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()),
       name,
-      points,
       createdAt: new Date().toISOString(),
       completions: {},
     });
-    saveQuests(quests);
-    render();
+    setQuestsFor(heroId, quests);
+    renderAll();
+  }
+
+  // ----- Actions: heroes -----
+  function addHero(name, photo) {
+    const heroes = loadHeroes();
+    const hero = {
+      id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()),
+      name,
+      photo: photo || null,
+    };
+    heroes.push(hero);
+    saveHeroes(heroes);
+    setActiveHeroId(hero.id);
+    renderAll();
+  }
+
+  function removeHero(id, name) {
+    if (!confirm(`Remove "${name}" and all their quests? This can't be undone.`)) return;
+    const heroes = loadHeroes().filter((h) => h.id !== id);
+    saveHeroes(heroes);
+    const all = loadAllQuests();
+    delete all[id];
+    saveAllQuests(all);
+    if (getActiveHeroId() === id) {
+      localStorage.removeItem(ACTIVE_KEY);
+    }
+    renderAll();
   }
 
   function burstConfetti() {
@@ -386,40 +451,41 @@
   }
 
   // ----- Wiring -----
-  pointChoice.addEventListener("click", (e) => {
-    const btn = e.target.closest(".point-choice-btn");
-    if (!btn) return;
-    pointChoice.querySelectorAll(".point-choice-btn").forEach((b) => b.classList.remove("active"));
-    btn.classList.add("active");
-    selectedPoints = Number(btn.dataset.points);
-  });
-
   form.addEventListener("submit", (e) => {
     e.preventDefault();
+    const activeId = getActiveHeroId();
+    if (!activeId) return;
     const name = nameInput.value.trim();
     if (!name) return;
-    addQuest(name, selectedPoints);
+    addQuest(activeId, name);
     nameInput.value = "";
     nameInput.focus();
   });
 
-  heroDifficulty.addEventListener("click", (e) => {
-    const btn = e.target.closest(".point-choice-btn");
-    if (!btn) return;
-    heroDifficulty.querySelectorAll(".point-choice-btn").forEach((b) => b.classList.remove("active"));
-    btn.classList.add("active");
-    selectedHeroMax = Number(btn.dataset.max);
+  heroPhotoInput.addEventListener("change", async () => {
+    const file = heroPhotoInput.files[0];
+    if (!file) return;
+    try {
+      pendingPhoto = await readAndResizePhoto(file);
+      heroPhotoPreview.src = pendingPhoto;
+      heroPhotoPreview.hidden = false;
+      heroPhotoPlaceholder.hidden = true;
+    } catch {
+      pendingPhoto = null;
+    }
   });
 
   heroForm.addEventListener("submit", (e) => {
     e.preventDefault();
-    const avatar = heroAvatarInput.value.trim() || "🦹";
     const name = heroNameInput.value.trim();
     if (!name) return;
-    addHero(avatar, name, selectedHeroMax);
-    heroAvatarInput.value = "";
+    addHero(name, pendingPhoto);
     heroNameInput.value = "";
-    heroNameInput.focus();
+    heroPhotoInput.value = "";
+    pendingPhoto = null;
+    heroPhotoPreview.hidden = true;
+    heroPhotoPreview.src = "";
+    heroPhotoPlaceholder.hidden = false;
   });
 
   tabs.addEventListener("click", (e) => {
@@ -435,5 +501,5 @@
     document.getElementById(`panel-${btn.dataset.tab}`).classList.remove("hidden");
   });
 
-  render();
+  renderAll();
 })();
