@@ -1,315 +1,439 @@
-let heroes = [];
-let activePhotoHeroId = null;
+(() => {
+  "use strict";
 
-// DOM Elements
-const heroNameInput = document.getElementById('heroNameInput');
-const registerBtn = document.getElementById('registerBtn');
-const heroesListContainer = document.getElementById('heroesListContainer');
-const resetAllBtn = document.getElementById('resetAllBtn');
-const leaderboardBtn = document.getElementById('leaderboardBtn');
-const reportModal = document.getElementById('reportModal');
-const closeModalBtn = document.getElementById('closeModalBtn');
-const modalReportBody = document.getElementById('modalReportBody');
-const modalMonthInfo = document.getElementById('modalMonthInfo');
-const globalPhotoInput = document.getElementById('globalPhotoInput');
+  const STORAGE_KEY = "herotrack.quests.v2";
+  const RIVALS_KEY = "herotrack.rivals.v1";
+  const YOU_NAME = "You";
+  const YOU_AVATAR = "🦸";
 
-function init() {
-    registerBtn.addEventListener('click', registerHero);
-    heroNameInput.addEventListener('keypress', (e) => { 
-        if (e.key === 'Enter') registerHero(); 
+  const DEFAULT_RIVALS = [
+    { id: "r1", name: "Turbo Tori", avatar: "🐯", max: 280 },
+    { id: "r2", name: "Captain Cloud", avatar: "☁️", max: 180 },
+    { id: "r3", name: "Mega Mochi", avatar: "🍡", max: 220 },
+    { id: "r4", name: "Ninja Newt", avatar: "🦎", max: 150 },
+    { id: "r5", name: "Sir Waffles", avatar: "🧇", max: 200 },
+  ];
+
+  function loadRivals() {
+    try {
+      const raw = localStorage.getItem(RIVALS_KEY);
+      if (raw) return JSON.parse(raw);
+      saveRivals(DEFAULT_RIVALS);
+      return DEFAULT_RIVALS;
+    } catch {
+      return DEFAULT_RIVALS;
+    }
+  }
+
+  function saveRivals(rivals) {
+    localStorage.setItem(RIVALS_KEY, JSON.stringify(rivals));
+  }
+
+  // ----- DOM refs -----
+  const questList = document.getElementById("quest-list");
+  const emptyState = document.getElementById("empty-state");
+  const form = document.getElementById("quest-form");
+  const nameInput = document.getElementById("quest-name");
+  const pointChoice = document.getElementById("point-choice");
+  const questTemplate = document.getElementById("quest-template");
+  const boardRowTemplate = document.getElementById("board-row-template");
+  const totalPointsEl = document.getElementById("total-points");
+  const levelNumberEl = document.getElementById("level-number");
+  const todayLabel = document.getElementById("today-label");
+  const todayPointsEarned = document.getElementById("today-points-earned");
+  const tabs = document.getElementById("tabs");
+  const confettiLayer = document.getElementById("confetti-layer");
+  const heroForm = document.getElementById("hero-form");
+  const heroAvatarInput = document.getElementById("hero-avatar");
+  const heroNameInput = document.getElementById("hero-name");
+  const heroDifficulty = document.getElementById("hero-difficulty");
+  const heroList = document.getElementById("hero-list");
+  const heroEmptyState = document.getElementById("hero-empty-state");
+  const heroCardTemplate = document.getElementById("hero-card-template");
+
+  let selectedPoints = 10;
+  let selectedHeroMax = 220;
+
+  // ----- Storage -----
+  function loadQuests() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      return raw ? JSON.parse(raw) : [];
+    } catch {
+      return [];
+    }
+  }
+
+  function saveQuests(quests) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(quests));
+  }
+
+  // ----- Date helpers -----
+  function formatDateKey(date) {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, "0");
+    const d = String(date.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  }
+
+  function todayKey() {
+    return formatDateKey(new Date());
+  }
+
+  function startOfWeek(date) {
+    const d = new Date(date);
+    const day = (d.getDay() + 6) % 7; // Monday = 0
+    d.setDate(d.getDate() - day);
+    d.setHours(0, 0, 0, 0);
+    return d;
+  }
+
+  function weekKey(date) {
+    const start = startOfWeek(date);
+    return formatDateKey(start);
+  }
+
+  function monthKey(date) {
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+  }
+
+  function daysInMonth(date) {
+    return new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
+  }
+
+  // ----- Streaks -----
+  function currentStreak(quest) {
+    let streak = 0;
+    const cursor = new Date();
+    if (!quest.completions[formatDateKey(cursor)]) {
+      cursor.setDate(cursor.getDate() - 1);
+    }
+    while (quest.completions[formatDateKey(cursor)]) {
+      streak++;
+      cursor.setDate(cursor.getDate() - 1);
+    }
+    return streak;
+  }
+
+  // ----- Points math -----
+  function pointsOnDate(quests, key) {
+    return quests.reduce((sum, q) => sum + (q.completions[key] ? q.points : 0), 0);
+  }
+
+  function totalPoints(quests) {
+    let sum = 0;
+    quests.forEach((q) => {
+      Object.keys(q.completions).forEach((key) => {
+        if (q.completions[key]) sum += q.points;
+      });
     });
-    resetAllBtn.addEventListener('click', resetAllData);
-    
-    leaderboardBtn.addEventListener('click', openMonthlyReportModal);
-    closeModalBtn.addEventListener('click', () => reportModal.classList.add('hidden'));
+    return sum;
+  }
 
-    globalPhotoInput.addEventListener('change', handlePhotoUpload);
+  function weeklyPoints(quests) {
+    const start = startOfWeek(new Date());
+    let sum = 0;
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(start);
+      d.setDate(d.getDate() + i);
+      if (d > new Date()) break;
+      sum += pointsOnDate(quests, formatDateKey(d));
+    }
+    return sum;
+  }
 
-    renderHeroes();
-}
-
-// Get exact number of days in the current month (28, 29, 30, or 31)
-function getDaysInCurrentMonth() {
+  function monthlyPoints(quests) {
     const now = new Date();
-    return new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-}
+    let sum = 0;
+    for (let day = 1; day <= now.getDate(); day++) {
+      const d = new Date(now.getFullYear(), now.getMonth(), day);
+      sum += pointsOnDate(quests, formatDateKey(d));
+    }
+    return sum;
+  }
 
-// Get current day index where Monday is 0 and Sunday is 6
-function getCurrentDayIndex() {
-    const jsDay = new Date().getDay(); // 0 is Sunday, 1 is Monday, ..., 6 is Saturday
-    return jsDay === 0 ? 6 : jsDay - 1;
-}
+  // ----- Deterministic "rival" scores (seeded, no server needed) -----
+  function seededRandom(seedStr) {
+    let h = 0;
+    for (let i = 0; i < seedStr.length; i++) {
+      h = (Math.imul(31, h) + seedStr.charCodeAt(i)) | 0;
+    }
+    return function next() {
+      h = Math.imul(h ^ (h >>> 15), 2246822519);
+      h ^= h >>> 13;
+      h = Math.imul(h, 3266489917);
+      h ^= h >>> 16;
+      return (h >>> 0) / 4294967296;
+    };
+  }
 
-function registerHero() {
+  function rivalScore(rival, periodKey, fractionElapsed) {
+    const rng = seededRandom(rival.name + periodKey);
+    const base = rng() * rival.max * fractionElapsed;
+    const jitter = rng() * 12;
+    return Math.round(base + jitter);
+  }
+
+  function weekFractionElapsed() {
+    const day = (new Date().getDay() + 6) % 7; // 0=Mon
+    return (day + 1) / 7;
+  }
+
+  function monthFractionElapsed() {
+    const now = new Date();
+    return now.getDate() / daysInMonth(now);
+  }
+
+  // ----- Rendering: quests -----
+  function renderQuests(quests) {
+    emptyState.hidden = quests.length > 0;
+    questList.innerHTML = "";
+    const key = todayKey();
+    let pointsToday = 0;
+    let doneCount = 0;
+
+    quests.forEach((quest) => {
+      const node = questTemplate.content.cloneNode(true);
+      const checkBtn = node.querySelector(".quest-check");
+      const nameEl = node.querySelector(".quest-name");
+      const streakNumEl = node.querySelector(".streak-number");
+      const removeBtn = node.querySelector(".quest-remove");
+      const pointsValueEl = node.querySelector(".points-value");
+
+      const doneToday = !!quest.completions[key];
+      if (doneToday) {
+        pointsToday += quest.points;
+        doneCount++;
+      }
+
+      nameEl.textContent = quest.name;
+      pointsValueEl.textContent = String(quest.points);
+      checkBtn.setAttribute("aria-pressed", String(doneToday));
+      streakNumEl.textContent = String(currentStreak(quest));
+
+      checkBtn.addEventListener("click", () => toggleCompletion(quest.id));
+      removeBtn.addEventListener("click", () => removeQuest(quest.id, quest.name));
+
+      questList.appendChild(node);
+    });
+
+    todayPointsEarned.textContent = `+${pointsToday} today`;
+    if (quests.length > 0 && doneCount === quests.length) {
+      burstConfetti();
+    }
+  }
+
+  // ----- Rendering: leaderboards -----
+  function renderBoard(kind) {
+    const quests = loadQuests();
+    const isWeekly = kind === "weekly";
+    const periodKey = isWeekly ? weekKey(new Date()) : monthKey(new Date());
+    const fraction = isWeekly ? weekFractionElapsed() : monthFractionElapsed();
+    const yourScore = isWeekly ? weeklyPoints(quests) : monthlyPoints(quests);
+
+    const rivals = loadRivals();
+    const entries = rivals.map((r) => ({
+      name: r.name,
+      avatar: r.avatar,
+      score: rivalScore(r, periodKey, fraction),
+    }));
+    entries.push({ name: YOU_NAME, avatar: YOU_AVATAR, score: yourScore, isYou: true });
+    entries.sort((a, b) => b.score - a.score);
+
+    const podiumEl = document.getElementById(`${kind}-podium`);
+    const listEl = document.getElementById(`${kind}-list`);
+    podiumEl.innerHTML = "";
+    listEl.innerHTML = "";
+
+    const medals = ["🥇", "🥈", "🥉"];
+    const podiumOrder = [1, 0, 2]; // visual order: 2nd, 1st, 3rd
+    podiumOrder.forEach((idx) => {
+      const entry = entries[idx];
+      if (!entry) return;
+      const spot = document.createElement("div");
+      spot.className = `podium-spot rank-${idx + 1}`;
+      spot.innerHTML = `
+        <span class="podium-medal">${medals[idx]}</span>
+        <span class="podium-avatar">${entry.avatar}</span>
+        <span class="podium-name">${entry.isYou ? "You" : entry.name}</span>
+        <span class="podium-points">${entry.score} pts</span>
+      `;
+      podiumEl.appendChild(spot);
+    });
+
+    entries.slice(3).forEach((entry, i) => {
+      const row = boardRowTemplate.content.cloneNode(true);
+      const rowEl = row.querySelector(".board-row");
+      if (entry.isYou) rowEl.classList.add("is-you");
+      row.querySelector(".board-rank").textContent = `#${i + 4}`;
+      row.querySelector(".board-avatar").textContent = entry.avatar;
+      row.querySelector(".board-name").textContent = entry.isYou ? "You" : entry.name;
+      row.querySelector(".board-points").textContent = `${entry.score} pts`;
+      listEl.appendChild(row);
+    });
+  }
+
+  // ----- Header (level / total points) -----
+  function renderHeader(quests) {
+    const total = totalPoints(quests);
+    totalPointsEl.textContent = String(total);
+    levelNumberEl.textContent = String(Math.floor(total / 100) + 1);
+    todayLabel.textContent = new Date().toLocaleDateString(undefined, {
+      weekday: "long",
+      month: "short",
+      day: "numeric",
+    });
+  }
+
+  function difficultyLabel(max) {
+    if (max <= 120) return "Rookie";
+    if (max <= 220) return "Pro";
+    return "Legend";
+  }
+
+  function renderHeroes() {
+    const rivals = loadRivals();
+    heroEmptyState.hidden = rivals.length > 0;
+    heroList.innerHTML = "";
+    rivals.forEach((rival) => {
+      const node = heroCardTemplate.content.cloneNode(true);
+      node.querySelector(".hero-card-avatar").textContent = rival.avatar;
+      node.querySelector(".hero-card-name").textContent = rival.name;
+      node.querySelector(".hero-card-difficulty").textContent = `${difficultyLabel(rival.max)} rival`;
+      node.querySelector(".quest-remove").addEventListener("click", () => removeHero(rival.id, rival.name));
+      heroList.appendChild(node);
+    });
+  }
+
+  function addHero(avatar, name, max) {
+    const rivals = loadRivals();
+    rivals.push({
+      id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()),
+      name,
+      avatar,
+      max,
+    });
+    saveRivals(rivals);
+    renderHeroes();
+    renderBoard("weekly");
+    renderBoard("monthly");
+  }
+
+  function removeHero(id, name) {
+    if (!confirm(`Remove "${name}" from the leaderboard?`)) return;
+    const rivals = loadRivals().filter((r) => r.id !== id);
+    saveRivals(rivals);
+    renderHeroes();
+    renderBoard("weekly");
+    renderBoard("monthly");
+  }
+
+  function render() {
+    const quests = loadQuests();
+    renderHeader(quests);
+    renderQuests(quests);
+    renderBoard("weekly");
+    renderBoard("monthly");
+    renderHeroes();
+  }
+
+  // ----- Actions -----
+  function toggleCompletion(id) {
+    const quests = loadQuests();
+    const quest = quests.find((q) => q.id === id);
+    if (!quest) return;
+    const key = todayKey();
+    if (quest.completions[key]) {
+      delete quest.completions[key];
+    } else {
+      quest.completions[key] = true;
+    }
+    saveQuests(quests);
+    render();
+  }
+
+  function removeQuest(id, name) {
+    if (!confirm(`Delete "${name}"? This can't be undone.`)) return;
+    const quests = loadQuests().filter((q) => q.id !== id);
+    saveQuests(quests);
+    render();
+  }
+
+  function addQuest(name, points) {
+    const quests = loadQuests();
+    quests.push({
+      id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()),
+      name,
+      points,
+      createdAt: new Date().toISOString(),
+      completions: {},
+    });
+    saveQuests(quests);
+    render();
+  }
+
+  function burstConfetti() {
+    const colors = ["#ff6fa5", "#ffd23f", "#34cf85", "#8c6fff", "#5fb8ff"];
+    for (let i = 0; i < 40; i++) {
+      const piece = document.createElement("span");
+      piece.className = "confetti-piece";
+      piece.style.left = `${Math.random() * 100}vw`;
+      piece.style.background = colors[i % colors.length];
+      piece.style.animationDelay = `${Math.random() * 0.3}s`;
+      confettiLayer.appendChild(piece);
+      setTimeout(() => piece.remove(), 2200);
+    }
+  }
+
+  // ----- Wiring -----
+  pointChoice.addEventListener("click", (e) => {
+    const btn = e.target.closest(".point-choice-btn");
+    if (!btn) return;
+    pointChoice.querySelectorAll(".point-choice-btn").forEach((b) => b.classList.remove("active"));
+    btn.classList.add("active");
+    selectedPoints = Number(btn.dataset.points);
+  });
+
+  form.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const name = nameInput.value.trim();
+    if (!name) return;
+    addQuest(name, selectedPoints);
+    nameInput.value = "";
+    nameInput.focus();
+  });
+
+  heroDifficulty.addEventListener("click", (e) => {
+    const btn = e.target.closest(".point-choice-btn");
+    if (!btn) return;
+    heroDifficulty.querySelectorAll(".point-choice-btn").forEach((b) => b.classList.remove("active"));
+    btn.classList.add("active");
+    selectedHeroMax = Number(btn.dataset.max);
+  });
+
+  heroForm.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const avatar = heroAvatarInput.value.trim() || "🦹";
     const name = heroNameInput.value.trim();
     if (!name) return;
+    addHero(avatar, name, selectedHeroMax);
+    heroAvatarInput.value = "";
+    heroNameInput.value = "";
+    heroNameInput.focus();
+  });
 
-    const daysInMonth = getDaysInCurrentMonth();
-    
-    const newHero = {
-        id: Date.now(),
-        name: name,
-        points: 0,
-        photo: null, 
-        chores: [],
-        days: [0, 0, 0, 0, 0, 0, 0], // Percentage achieved per day (0 to 100)
-        monthlyDays: new Array(daysInMonth).fill(0), // Percentage achieved per month day
-        weeklyPercentage: 0,
-        monthlyPercentage: 0
-    };
-
-    heroes.push(newHero);
-    heroNameInput.value = '';
-    renderHeroes();
-}
-
-function removeHero(id) {
-    const hero = heroes.find(h => h.id === id);
-    if (confirm(`Warning: Are you sure you want to delete ${hero ? hero.name : 'this hero'} and all associated records?`)) {
-        heroes = heroes.filter(h => h.id !== id);
-        renderHeroes();
-    }
-}
-
-function resetAllData() {
-    if (confirm("Warning: This will delete all registered heroes and reset all data. Do you want to proceed?")) {
-        heroes = [];
-        renderHeroes();
-    }
-}
-
-function updateHeroName(id, newName) {
-    const hero = heroes.find(h => h.id === id);
-    if (hero) {
-        hero.name = newName.trim();
-    }
-}
-
-function updateChoreText(heroId, choreIndex, newText) {
-    const hero = heroes.find(h => h.id === heroId);
-    if (hero && hero.chores[choreIndex]) {
-        hero.chores[choreIndex].text = newText.trim();
-    }
-}
-
-function addChore(heroId) {
-    const inputEl = document.getElementById(`chore-input-${heroId}`);
-    const choreText = inputEl.value.trim();
-    if (!choreText) return;
-
-    const hero = heroes.find(h => h.id === heroId);
-    if (hero) {
-        hero.chores.push({ text: choreText, completed: false });
-        inputEl.value = '';
-        
-        // Recalculate daily task progress percentage when a new task is added
-        updateTodayTaskProgress(hero);
-        renderHeroes();
-    }
-}
-
-// Automatically update today's task progress based on completed tasks / total tasks ratio
-function toggleChore(heroId, choreIndex) {
-    const hero = heroes.find(h => h.id === heroId);
-    if (hero && hero.chores[choreIndex]) {
-        hero.chores[choreIndex].completed = !hero.chores[choreIndex].completed;
-        hero.points += hero.chores[choreIndex].completed ? 10 : -10;
-        if (hero.points < 0) hero.points = 0;
-
-        updateTodayTaskProgress(hero);
-        renderHeroes();
-    }
-}
-
-function removeChore(heroId, choreIndex) {
-    const hero = heroes.find(h => h.id === heroId);
-    if (hero) {
-        if (confirm(`Warning: Are you sure you want to delete the chore "${hero.chores[choreIndex].text}"?`)) {
-            hero.chores.splice(choreIndex, 1);
-            
-            updateTodayTaskProgress(hero);
-            renderHeroes();
-        }
-    }
-}
-
-// Calculate precise ratio for today's tasks and overall accumulated percentages
-function updateTodayTaskProgress(hero) {
-    const todayIndex = getCurrentDayIndex();
-    
-    if (hero.chores.length === 0) {
-        hero.days[todayIndex] = 0;
-    } else {
-        const completedCount = hero.chores.filter(c => c.completed).length;
-        // Percentage based strictly on completed tasks vs total tasks for that day
-        hero.days[todayIndex] = Math.round((completedCount / hero.chores.length) * 100);
-    }
-
-    hero.monthlyDays[todayIndex] = hero.days[todayIndex];
-
-    recalculateProgress(hero);
-}
-
-// Recalculate weekly and monthly averages
-function recalculateProgress(hero) {
-    const totalWeekScore = hero.days.reduce((acc, val) => acc + val, 0);
-    hero.weeklyPercentage = Math.round(totalWeekScore / 7);
-
-    const daysInMonth = hero.monthlyDays.length;
-    const totalMonthScore = hero.monthlyDays.reduce((acc, val) => acc + val, 0);
-    hero.monthlyPercentage = Math.round(totalMonthScore / daysInMonth);
-}
-
-// Allow manual override by clicking day box if needed
-function toggleDay(heroId, dayIndex) {
-    const hero = heroes.find(h => h.id === heroId);
-    if (hero) {
-        hero.days[dayIndex] = hero.days[dayIndex] === 100 ? 0 : 100;
-        hero.monthlyDays[dayIndex] = hero.days[dayIndex];
-        recalculateProgress(hero);
-        renderHeroes();
-    }
-}
-
-function triggerPhotoUpload(heroId) {
-    activePhotoHeroId = heroId;
-    globalPhotoInput.click();
-}
-
-function handlePhotoUpload(e) {
-    const file = e.target.files[0];
-    if (file && activePhotoHeroId !== null) {
-        const reader = new FileReader();
-        reader.onload = function(uploadEvent) {
-            const hero = heroes.find(h => h.id === activePhotoHeroId);
-            if (hero) {
-                hero.photo = uploadEvent.target.result;
-                renderHeroes();
-            }
-            activePhotoHeroId = null;
-            globalPhotoInput.value = '';
-        };
-        reader.readAsDataURL(file);
-    }
-}
-
-function openMonthlyReportModal() {
-    const now = new Date();
-    const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-    const currentMonthName = monthNames[now.getMonth()];
-    const daysInMonth = getDaysInCurrentMonth();
-
-    modalMonthInfo.textContent = `Report for ${currentMonthName} (Total Days: ${daysInMonth}):`;
-
-    if (heroes.length === 0) {
-        modalReportBody.innerHTML = `<p>No heroes registered yet to generate a report.</p>`;
-    } else {
-        let html = `<table style="width:100%; border-collapse: collapse;">`;
-        html += `<tr style="border-bottom: 1px solid #ccc;"><th style="text-align:left; padding:6px;">Hero Name</th><th style="text-align:center; padding:6px;">Points</th><th style="text-align:right; padding:6px;">Monthly Progress</th></tr>`;
-        heroes.forEach(h => {
-            html += `<tr style="border-bottom: 1px solid #eee;"><td style="padding:6px;">${h.name}</td><td style="text-align:center; padding:6px;">⭐ ${h.points}</td><td style="text-align:right; padding:6px;">${h.monthlyPercentage}%</td></tr>`;
-        });
-        html += `</table>`;
-        modalReportBody.innerHTML = html;
-    }
-
-    reportModal.classList.remove('hidden');
-}
-
-function renderHeroes() {
-    heroesListContainer.innerHTML = '';
-
-    if (heroes.length === 0) {
-        heroesListContainer.innerHTML = `<div class="empty-state">No heroes registered yet. Type a name above and click "Register Hero" to begin!</div>`;
-        return;
-    }
-
-    const dayLabels = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
-
-    heroes.forEach(hero => {
-        const card = document.createElement('div');
-        card.className = 'hero-card';
-
-        let choresHTML = '';
-        hero.chores.forEach((chore, index) => {
-            choresHTML += `
-                <div class="chore-item ${chore.completed ? 'completed' : ''}">
-                    <button class="chore-text-btn" onclick="toggleChore(${hero.id}, ${index})" style="background:none; border:none; cursor:pointer; color:inherit;">
-                        <span>${chore.completed ? '☑' : '□'}</span>
-                    </button>
-                    <input type="text" class="chore-text-input" value="${chore.text}" onchange="updateChoreText(${hero.id}, ${index}, this.value)">
-                    <button class="chore-delete-btn" onclick="removeChore(${hero.id}, ${index})" title="Delete chore">✕</button>
-                </div>
-            `;
-        });
-
-        let daysHTML = '';
-        hero.days.forEach((dayPct, dIndex) => {
-            let statusClass = dayPct > 0 ? 'completed' : 'missed';
-            if (dayPct === 0) statusClass = 'missed';
-            
-            daysHTML += `
-                <div class="day-box ${statusClass}" onclick="toggleDay(${hero.id}, ${dIndex})" title="Click to toggle day">
-                    <span>${dayLabels[dIndex]}</span>
-                    <span class="day-pct">${dayPct}%</span>
-                </div>
-            `;
-        });
-
-        let avatarContent = `<span style="font-size: 2rem;">⭐</span><div class="avatar-overlay">Edit Photo</div>`;
-        if (hero.photo) {
-            avatarContent = `<img src="${hero.photo}" alt="Hero Photo"><div class="avatar-overlay">Edit Photo</div>`;
-        }
-
-        card.innerHTML = `
-            <div class="hero-profile">
-                <div class="avatar-container" onclick="triggerPhotoUpload(${hero.id})" title="Click to change profile picture">
-                    ${avatarContent}
-                </div>
-                <input type="text" class="hero-name-input" value="${hero.name}" onchange="updateHeroName(${hero.id}, this.value)">
-                <div class="pts-badge">⭐ ${hero.points} pts</div>
-                <button class="btn-remove" onclick="removeHero(${hero.id})">✕ Remove</button>
-            </div>
-
-            <div class="chores-section">
-                <div class="add-chore-row">
-                    <input type="text" id="chore-input-${hero.id}" placeholder="New chore..." onkeypress="if(event.key==='Enter') addChore(${hero.id})">
-                    <button class="btn-add-chore" onclick="addChore(${hero.id})">+</button>
-                </div>
-                ${choresHTML}
-            </div>
-
-            <div class="daily-progress-section">
-                <div class="progress-label">Daily Progress (100% Scale):</div>
-                <div class="days-grid">
-                    ${daysHTML}
-                </div>
-            </div>
-
-            <div class="targets-column">
-                <div class="target-block">
-                    <div class="target-title">Weekly Target:</div>
-                    <div class="target-circle">${hero.weeklyPercentage}%</div>
-                </div>
-                <div class="target-block">
-                    <div class="target-title">Monthly (${hero.monthlyDays.length}d):</div>
-                    <div class="target-circle">${hero.monthlyPercentage}%</div>
-                </div>
-            </div>
-        `;
-
-        heroesListContainer.appendChild(card);
+  tabs.addEventListener("click", (e) => {
+    const btn = e.target.closest(".tab");
+    if (!btn) return;
+    document.querySelectorAll(".tab").forEach((t) => {
+      t.classList.remove("active");
+      t.setAttribute("aria-selected", "false");
     });
-}
+    btn.classList.add("active");
+    btn.setAttribute("aria-selected", "true");
+    document.querySelectorAll(".panel").forEach((p) => p.classList.add("hidden"));
+    document.getElementById(`panel-${btn.dataset.tab}`).classList.remove("hidden");
+  });
 
-// Global scope bindings for inline HTML onClick/onChange attributes
-window.addChore = addChore;
-window.toggleChore = toggleChore;
-window.removeChore = removeChore;
-window.removeHero = removeHero;
-window.toggleDay = toggleDay;
-window.updateHeroName = updateHeroName;
-window.updateChoreText = updateChoreText;
-window.triggerPhotoUpload = triggerPhotoUpload;
-
-init();
+  render();
+})();
